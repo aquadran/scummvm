@@ -1034,6 +1034,7 @@ const Feature s_features[] = {
 	{   "libcurl",     "USE_LIBCURL", true, true,  "libcurl support" },
 	{    "sdlnet",     "USE_SDL_NET", true, true,  "SDL_net support" },
 	{   "discord",     "USE_DISCORD", true, false, "Discord support" },
+	{      "glew",        "USE_GLEW", true, true,  "GLEW support" }, // ResidualVM specific
 
 	// Feature flags
 	{             "bink",                      "USE_BINK", false, true,  "Bink video support" },
@@ -1045,6 +1046,7 @@ const Feature s_features[] = {
 	{              "lua",                       "USE_LUA", false, true,  "lua" },
 	{             "nasm",                      "USE_NASM", false, true,  "IA-32 assembly support" }, // This feature is special in the regard, that it needs additional handling.
 	{           "opengl",                    "USE_OPENGL", false, true,  "OpenGL support" },
+	{   "openglshaders",            "USE_OPENGL_SHADERS", false, true,  "OpenGL support (shaders)" }, // ResidualVM specific
 	{         "opengles",                      "USE_GLES", false, true,  "forced OpenGL ES mode" },
 	{          "taskbar",                   "USE_TASKBAR", false, true,  "Taskbar integration support" },
 	{            "cloud",                     "USE_CLOUD", false, true,  "Cloud integration support" },
@@ -1538,6 +1540,8 @@ void ProjectProvider::createProject(BuildSetup &setup) {
 		createModuleList(setup.srcDir + "/audio/softsynth/mt32", setup.defines, setup.testDirs, in, ex);
 		createModuleList(setup.srcDir + "/video", setup.defines, setup.testDirs, in, ex);
 		createModuleList(setup.srcDir + "/image", setup.defines, setup.testDirs, in, ex);
+		//ResidualVM specific:
+		createModuleList(setup.srcDir + "/math", setup.defines, setup.testDirs, in, ex);
 
 		// Resource files
 		addResourceFiles(setup, in, ex);

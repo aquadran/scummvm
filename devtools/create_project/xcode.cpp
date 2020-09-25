@@ -446,6 +446,7 @@ void XcodeProvider::setupFrameworksBuildPhase(const BuildSetup &setup) {
 	DEF_SYSFRAMEWORK("CoreFoundation");
 	DEF_SYSFRAMEWORK("Foundation");
 	DEF_SYSFRAMEWORK("IOKit");
+	DEF_SYSFRAMEWORK("OpenGL"); // ResidualVM specific
 	DEF_SYSFRAMEWORK("OpenGLES");
 	DEF_SYSFRAMEWORK("QuartzCore");
 	DEF_SYSFRAMEWORK("UIKit");
@@ -493,6 +494,12 @@ void XcodeProvider::setupFrameworksBuildPhase(const BuildSetup &setup) {
 	}
 	if (CONTAINS_DEFINE(setup.defines, "USE_THEORADEC")) {
 		DEF_LOCALLIB_STATIC("libtheoradec");
+	}
+	if (CONTAINS_DEFINE(setup.defines, "USE_GLEW")) { // ResidualVM specific
+		DEF_LOCALLIB_STATIC("libGLEW");
+	}
+	if (CONTAINS_DEFINE(setup.defines, "USE_MPEG2")) { // ResidualVM specific
+		DEF_LOCALLIB_STATIC("libmpeg2");
 	}
 	if (CONTAINS_DEFINE(setup.defines, "USE_ZLIB")) {
 		DEF_SYSTBD("libz");
@@ -635,6 +642,7 @@ void XcodeProvider::setupFrameworksBuildPhase(const BuildSetup &setup) {
 	frameworks_osx.push_back("ApplicationServices.framework");
 	frameworks_osx.push_back("IOKit.framework");
 	frameworks_osx.push_back("Cocoa.framework");
+	frameworks_osx.push_back("OpenGL.framework"); // ResidualVM specific
 	frameworks_osx.push_back("AudioUnit.framework");
 
 	if (CONTAINS_DEFINE(setup.defines, "USE_FLAC")) {
@@ -675,6 +683,12 @@ void XcodeProvider::setupFrameworksBuildPhase(const BuildSetup &setup) {
 	}
 	if (CONTAINS_DEFINE(setup.defines, "USE_THEORADEC")) {
 		frameworks_osx.push_back("libtheoradec.a");
+	}
+	if (CONTAINS_DEFINE(setup.defines, "USE_GLEW")) { // ResidualVM specific
+		frameworks_osx.push_back("libGLEW.a");
+	}
+	if (CONTAINS_DEFINE(setup.defines, "USE_MPEG2")) { // ResidualVM specific
+		frameworks_osx.push_back("libmpeg2.a");
 	}
 	if (CONTAINS_DEFINE(setup.defines, "USE_ZLIB")) {
 		frameworks_osx.push_back("libz.tbd");
@@ -793,6 +807,9 @@ XcodeProvider::ValueList& XcodeProvider::getResourceFiles() const {
 		files.push_back("dists/engine-data/cryomni3d.dat");
 		files.push_back("dists/engine-data/drascula.dat");
 		files.push_back("dists/engine-data/fonts.dat");
+		files.push_back("dists/engine-data/myst3.dat");
+		files.push_back("dists/engine-data/residualvm-emi-patch.m4b");
+		files.push_back("dists/engine-data/residualvm-grim-patch.lab");
 		files.push_back("dists/engine-data/hugo.dat");
 		files.push_back("dists/engine-data/kyra.dat");
 		files.push_back("dists/engine-data/lure.dat");

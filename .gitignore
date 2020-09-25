@@ -39,6 +39,9 @@ lib*.a
 /scummvm-conf.cpp
 /tmp_*.cpp
 /*.apk
+/*.m4b
+/*.lab
+/*.dat
 
 /README
 /README.html

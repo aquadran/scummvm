@@ -24,7 +24,7 @@
 #define BACKEND_EVENTS_SDL_H
 
 #include "backends/platform/sdl/sdl-sys.h"
-#include "backends/graphics/sdl/sdl-graphics.h"
+#include "backends/graphics3d/sdl/sdl-graphics3d.h"
 
 #include "common/events.h"
 
@@ -43,7 +43,7 @@ public:
 	SdlEventSource();
 	virtual ~SdlEventSource();
 
-	void setGraphicsManager(SdlGraphicsManager *gMan) { _graphicsManager = gMan; }
+	void setGraphicsManager(SdlGraphics3dManager *gMan) { _graphicsManager = gMan; }
 
 	/**
 	 * Gets and processes SDL events.
@@ -85,7 +85,7 @@ protected:
 	/**
 	 * The associated graphics manager.
 	 */
-	SdlGraphicsManager *_graphicsManager;
+	SdlGraphics3dManager *_graphicsManager;
 
 	/**
 	 * Search for a game controller db file and load it.
@@ -151,8 +151,10 @@ protected:
 	/**
 	 * Assigns the mouse coords to the mouse event. Furthermore notify the
 	 * graphics manager about the position change.
+	 * ResidualVM addon:
+	 * The parameters relx and rely for relative mouse movement are ResidualVM specific
 	 */
-	virtual bool processMouseEvent(Common::Event &event, int x, int y);
+	virtual bool processMouseEvent(Common::Event &event, int x, int y, int relx = 0, int rely = 0);
 
 	/**
 	 * Remaps key events. This allows platforms to configure

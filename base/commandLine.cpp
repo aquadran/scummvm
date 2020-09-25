@@ -43,6 +43,8 @@
 
 #include "audio/musicplugin.h"
 
+#include "graphics/renderer.h" // ResidualVM
+
 #define DETECTOR_TESTING_HACK
 #define UPGRADE_ALL_TARGETS_HACK
 
@@ -146,6 +148,15 @@ static const char HELP_STRING[] =
                                                                      ", opl2lpt"
 #endif
                                                                               ")\n"
+	"  --talkspeed=NUM          Set talk speed for games (default: 179)\n"
+	"  --show-fps               Set the turn on display FPS info\n"
+	"  --no-show-fps            Set the turn off display FPS info\n"
+	"  --renderer=RENDERER      Select renderer (software, opengl, opengl_shaders)\n"
+	"  --aspect-ratio           Enable aspect ratio correction\n"
+	"  --bpp=NUM                Select number of bits per pixel, 0 (auto-detect), 16, 32\n"
+	"                           (default: 0) (only supported by software renderer)\n"
+	"  --[no-]dirtyrects        Enable dirty rectangles optimisation in software renderer\n"
+	"                           (default: enabled)\n"
 	"  --aspect-ratio           Enable aspect ratio correction\n"
 	"  --render-mode=MODE       Enable additional render modes (hercGreen, hercAmber,\n"
 	"                           cga, ega, vga, amiga, fmtowns, pc9821, pc9801, 2gs,\n"
@@ -227,6 +238,10 @@ void registerDefaults() {
 	ConfMan.registerDefault("desired_screen_aspect_ratio", "auto");
 	ConfMan.registerDefault("stretch_mode", "default");
 	ConfMan.registerDefault("shader", "default");
+	ConfMan.registerDefault("show_fps", false);
+	ConfMan.registerDefault("dirtyrects", true);
+	ConfMan.registerDefault("bpp", 0);
+	ConfMan.registerDefault("vsync", true);
 
 	// Sound & Music
 	ConfMan.registerDefault("music_volume", 192);
@@ -283,6 +298,10 @@ void registerDefaults() {
 #if defined(ENABLE_SKY) || defined(ENABLE_QUEEN)
 	ConfMan.registerDefault("alt_intro", false);
 #endif
+#ifdef ENABLE_GRIM // ResidualVM specific
+	ConfMan.registerDefault("dimuse_tempo", 10);
+#endif
+	ConfMan.registerDefault("talkspeed", 179);
 
 	// Miscellaneous
 	ConfMan.registerDefault("joystick_num", 0);
@@ -685,6 +704,24 @@ Common::String parseCommandLine(Common::StringMap &settings, int argc, const cha
 					usage("Unrecognized render mode '%s'", option);
 			END_OPTION
 
+			DO_LONG_OPTION_INT("bpp")
+			END_OPTION
+
+			DO_LONG_OPTION_BOOL("dirtyrects")
+			END_OPTION
+
+			DO_LONG_OPTION("gamma")
+			END_OPTION
+
+			DO_LONG_OPTION("renderer")
+				Graphics::RendererType renderer = Graphics::parseRendererTypeCode(option);
+				if (renderer == Graphics::kRendererTypeDefault)
+					usage("Unrecognized renderer type '%s'", option);
+			END_OPTION
+
+			DO_LONG_OPTION_BOOL("show-fps")
+			END_OPTION
+
 			DO_LONG_OPTION("savepath")
 				Common::FSNode path(option);
 				if (!path.exists()) {
@@ -750,6 +787,12 @@ Common::String parseCommandLine(Common::StringMap &settings, int argc, const cha
 			DO_LONG_OPTION_BOOL("alt-intro")
 			END_OPTION
 #endif
+#ifdef ENABLE_GRIM
+			DO_LONG_OPTION_INT("dimuse-tempo")
+			END_OPTION
+#endif
+			DO_LONG_OPTION_INT("engine-speed")
+			END_OPTION
 
 #ifdef IPHONE
 			// This is automatically set when launched from the Springboard.

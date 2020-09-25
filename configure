@@ -158,7 +158,12 @@ _png=auto
 _theoradec=auto
 _faad=auto
 _fluidsynth=auto
+_glew=auto
 _opengl_mode=auto
+_opengl=auto
+_opengles=no
+_opengles2=no
+_opengl_shaders=auto
 _readline=auto
 _freetype2=auto
 _taskbar=auto
@@ -259,6 +264,7 @@ add_feature freetype2 "FreeType2" "_freetype2"
 add_feature highres "high resolution" "_highres"
 add_feature mad "MAD" "_mad"
 add_feature jpeg "JPEG" "_jpeg"
+add_feature opengl_shaders "OpenGL with shaders" "_opengl_shaders" #ResidualVM specific
 add_feature png "PNG" "_png"
 add_feature theoradec "libtheoradec" "_theoradec"
 add_feature vorbis "Vorbis file support" "_vorbis _tremor"
@@ -1099,6 +1105,14 @@ Optional Libraries:
   --with-a52-prefix=DIR    Prefix where liba52 is installed (optional)
   --enable-a52             enable a52 codec for MPEG decoder [autodetect]
 
+  --with-opengl-prefix=DIR prefix where OpenGL (ES) is installed (optional)
+  --disable-opengl         disable OpenGL (ES) support [autodetect]
+  --disable-opengl-shaders disable use of modern OpenGL with shaders
+  --force-opengles2        only detect OpenGL ES2
+
+  --with-glew-prefix=DIR   prefix where GLEW is installed (optional)
+  --disable-glew           disable GLEW support [autodetect]
+
   --with-jpeg-prefix=DIR   Prefix where libjpeg is installed (optional)
   --disable-jpeg           disable JPEG decoder [autodetect]
 
@@ -1294,6 +1308,13 @@ for ac_option in $@; do
 	--disable-tts)                _tts=no                ;;
 	--enable-gtk)                 _gtk=yes               ;;
 	--disable-gtk)                _gtk=no                ;;
+	--enable-glew)                _glew=yes              ;; #ResidualVM specific option
+	--disable-glew)               _glew=no               ;; #ResidualVM specific option
+	--enable-opengl)              _opengl=yes            ;; #ResidualVM specific option
+	--disable-opengl)             _opengl=no             ;; #ResidualVM specific option
+	--enable-opengl-shaders)      _opengl_shaders=yes    ;; #ResidualVM specific option
+	--disable-opengl-shaders).    _opengl_shaders=no     ;; #ResidualVM specific option
+	--force-opengles2)            _opengles2=yes         ;; #ResidualVM specific option
 	--enable-bink)                _bink=yes              ;;
 	--disable-bink)               _bink=no               ;;
 	--enable-discord)             _discord=yes           ;;
@@ -1428,6 +1449,18 @@ for ac_option in $@; do
 		arg=`echo $ac_option | cut -d '=' -f 2`
 		SDL_NET_CFLAGS="-I$arg/include"
 		SDL_NET_LIBS="-L$arg/lib"
+		;;
+#ResidualVM: specific option
+	--with-opengl-prefix=*)
+		arg=`echo $ac_option | cut -d '=' -f 2`
+		OPENGL_CFLAGS="-I$arg/include"
+		OPENGL_LIBS="-L$arg/lib"
+		;;
+#ResidualVM: specific option
+	--with-glew-prefix=*)
+		arg=`echo $ac_option | cut -d '=' -f 2`
+		GLEW_CFLAGS="-I$arg/include"
+		GLEW_LIBS="-L$arg/lib"
 		;;
 	--with-iconv-prefix=*)
 		arg=`echo $ac_option | cut -d '=' -f 2`
@@ -5160,6 +5193,56 @@ echo "$_freetype2"
 
 define_in_config_if_yes "$_freetype2" "USE_FREETYPE2"
 
+
+# ResidualVM specific start ->
+#
+# Check for GLEW
+#
+echocheck "GL Extension Wrangler (GLEW)"
+if test "$_glew" != "no" && test "$_opengl" = "no"; then
+	_glew=no
+	echo "cannot use GLEW without OpenGL"
+elif test "$_glew" != "no" && test "$_opengles2" = "yes"; then
+	_glew=no
+	echo "not needed with OpenGL ES v2"
+else
+
+	case $_host_os in
+	darwin*)
+		_GLEW_LIBS="-lGLEW"
+		;;
+	mingw*)
+		_GLEW_CFLAGS="-DGLEW_STATIC"
+		_GLEW_LIBS="-lglu32 -lglew32 -lopengl32"
+		;;
+	*)
+		_GLEW_LIBS="-lGLU -lGLEW"
+		;;
+	esac
+
+	if test "$_glew" = auto; then
+		_glew=no
+		cat > $TMPC << EOF
+#include <GL/glew.h>
+int main(void) {
+	glewInit();
+	return 0;
+}
+EOF
+		cc_check $DEFINES $GLEW_CFLAGS $_GLEW_CFLAGS $GLEW_LIBS $_GLEW_LIBS && _glew=yes
+	fi
+
+	if test "$_glew" = yes ; then
+		append_var LIBS "$GLEW_LIBS $_GLEW_LIBS"
+		append_var INCLUDES "$GLEW_CFLAGS $_GLEW_CFLAGS"
+	fi
+
+	echo "$_glew"
+fi
+
+define_in_config_if_yes "$_glew" "USE_GLEW"
+
+
 #
 # Check for OpenGL (ES)
 #
@@ -5167,91 +5250,144 @@ echocheck "OpenGL"
 
 case $_backend in
 	openpandora)
-		# Only enable OpenGL ES on the OpanPandora if --opengl-mode=gles is passed in explicitly.
-		if test "$_opengl_mode" = "gles" ; then
-			append_var LIBS "-lGLES_CM -lEGL -lX11"
-		else
-			_opengl_mode=none
+		# Only enable OpenGL ES on the OpanPandora if --enable-opengl is passed in explicitly.
+		if test "$_opengl" = yes ; then
+			_opengl=yes
+			_opengles=yes
+			OPENGL_LIBS="-lGLES_CM -lEGL -lX11"
+			OPENGL_CFLAGS="$OPENGL_LIBS"
+			append_var LIBS "$OPENGL_LIBS"
+			append_var INCLUDES "$OPENGL_CFLAGS"
 		fi
 		;;
 esac
 
-if test "$_opengl_mode" = auto ; then
-	case $_backend in
-		android)
-			# Android always runs in GLES mode
-			_opengl_mode=gles
+if test "$_opengl" = auto ; then
+	_opengl=no
+	if test "$_backend" = "sdl" || test "$_backend" = "android"; then
+		# Try different header filenames
+		# 1) GL/gl.h         This is usually used on POSIX and Windows systems
+		# 2) OpenGL/gl.h     This is used on Mac OS X
+		# 3) GLES2/gl2.h     This is used for OpenGL ES 2.x
+		# 4) GLES/gl.h       This is used for OpenGL ES 1.x
+		for i in "GL/gl.h" "OpenGL/gl.h" "GLES2/gl2.h" "GLES/gl.h"; do
+			# Test the current header for OpenGL
+			if test "$_opengles2" = no ; then
+				cat > $TMPC << EOF
+#include <$i>
+#include <stdio.h>
+int main(void) { printf("ANTIVIRUS FALSE POSITIVE WORKAROUND"); return GL_VERSION_1_1; }
+EOF
+				cc_check $DEFINES $OPENGL_CFLAGS $OPENGL_LIBS && _opengl=yes && break
+			fi
+
+			# Test the current header for OpenGL ES2
+			cat > $TMPC << EOF
+#include <$i>
+int main(void) { return GL_ES_VERSION_2_0; }
+EOF
+			cc_check $DEFINES $OPENGL_CFLAGS $OPENGL_LIBS && _opengl=yes && _opengles2=yes && break
+
+			# Test the current header for OpenGL ES
+			if test "$_opengles2" = no ; then
+				cat > $TMPC << EOF
+#include <$i>
+int main(void) { return GL_OES_VERSION_1_1; }
+EOF
+				cc_check $DEFINES $OPENGL_CFLAGS $OPENGL_LIBS && _opengl=yes && _opengles=yes && break
+			fi
+		done
+	fi
+fi
+if test "$_opengl" = yes ; then
+	# Our simple test case
+	cat > $TMPC << EOF
+int main(void) { return 0; }
+EOF
+
+	_opengl=no
+	# Try different library names
+	if test "$_opengles" = "yes" ; then
+		# 1) GLES_CM    This is usually used for OpenGL ES 1.1 (Common profile)
+		# 2) GLESv1_CM  This is used by the Windows Mali OpenGL ES 1.1 Emulator
+		# 3) glesv1     This is used by the Linux Mali OpenGL ES 1.1 Emulator
+		_opengles=no
+		for lib in "-lGLES_CM" "-lGLESv1_CM" "-lglesv1"; do
+			if cc_check_no_clean $DEFINES $OPENGL_CFLAGS $OPENGL_LIBS $lib
+				then
+				_opengl=yes
+				_opengles=yes
+				append_var OPENGL_LIBS "$lib"
+				break
+			fi
+		done
+	elif test "$_opengles2" = yes ; then
+		# 1) GLESv2    This is generally used by nearly all platforms for OpenGL ES 2
+		# 2) ogles2    This is used by AmigaOS4 (and probably others)
+		_opengles2=no
+		for lib in "-lGLESv2" "-logles2"; do
+			if cc_check_no_clean $DEFINES $OPENGL_CFLAGS $OPENGL_LIBS $lib
+				then
+				_opengl=yes
+				_opengles2=yes
+				_opengl_shaders=yes
+				append_var OPENGL_LIBS "$lib"
+				break
+			fi
+		done
+	else
+		case $_host_os in
+		darwin*)
+			OPENGL_LIBS="-framework OpenGL"
 			;;
-		sdl)
-			case $_sdlversion in
-				1.2.*)
-					# Stock SDL 1.2 only supports OpenGL contexts.
-					_opengl_mode=gl
-					;;
-
-				2.0.*)
-					# SDL2 supports both OpenGL + OpenGL ES contexts.
-					# However, Mac OS X only allows OpenGL context creation at
-					# this time, thus we limit us to OpenGL on that platform.
-					case $_host_os in
-						darwin*)
-							_opengl_mode=gl
-							;;
-
-						*)
-							_opengl_mode=any
-							;;
-					esac
-					;;
-			esac
+		mingw*)
+			OPENGL_LIBS="-lopengl32"
 			;;
-
 		*)
-			_opengl_mode=none
+			OPENGL_LIBS="-lGL"
 			;;
-	esac
+		esac
+		if cc_check_no_clean $DEFINES $OPENGL_CFLAGS $OPENGL_LIBS
+			then
+			_opengl=yes
+		fi
+	fi
+
+	if test "$_opengl" = yes ; then
+		append_var LIBS "$OPENGL_LIBS"
+		append_var INCLUDES "$OPENGL_CFLAGS"
+		if test "$_opengl_shaders" = auto; then
+			_opengl_shaders=$_glew
+		fi
+		if test "$_opengl_shaders" = yes && test "$_opengles2" = no && test "$_glew" = no; then
+			echo "WARNING: OpenGL Shader support requires GLEW!"
+			_opengl_shaders=no
+		fi
+	else
+		_opengl_shaders=no
+	fi
+	cc_check_clean
 fi
 
-_opengl=yes
-case $_opengl_mode in
-	auto)
-		# This case should never occur but better safe than sorry.
+
+if test "$_opengles" = "yes" ; then
+	echo "yes (OpenGL ES)"
+elif test "$_opengles2" = "yes" ; then
+	echo "yes (OpenGL ES2)"
+else
+	if test "$_opengl_shaders" = "yes" ; then
+		echo "$_opengl (shaders enabled)"
+	elif test "$_opengl" = "yes" ; then
+		echo "$_opengl (shaders disabled)"
+	else
 		echo "no"
-		_opengl=no
-		;;
-
-	none)
-		echo "no"
-		_opengl=no
-		;;
-
-	any)
-		echo "yes (runtime detection)"
-		add_line_to_config_h "#undef USE_GLES_MODE"
-		;;
-
-	gl)
-		echo "yes (OpenGL)"
-		add_line_to_config_h "#define USE_GLES_MODE 0"
-		;;
-
-	gles)
-		echo "yes (OpenGL ES)"
-		add_line_to_config_h "#define USE_GLES_MODE 1"
-		;;
-
-	gles2)
-		echo "yes (OpenGL ES 2)"
-		add_line_to_config_h "#define USE_GLES_MODE 2"
-		;;
-
-	*)
-		echo "invalid mode specification '$_opengl_mode'. Aborting."
-		exit 1
-		;;
-esac
+	fi
+fi
 
 define_in_config_if_yes "$_opengl" "USE_OPENGL"
+define_in_config_if_yes "$_opengles" "USE_GLES"
+define_in_config_if_yes "$_opengles2" "USE_GLES2"
+define_in_config_if_yes "$_opengl_shaders" "USE_OPENGL_SHADERS"
 
 #
 # Check for iconv
@@ -5332,6 +5468,8 @@ fi
 echocheck "iconv"
 define_in_config_if_yes "$_iconv" 'USE_ICONV'
 echo "$_iconv"
+# ResidualVM specific ends here <-
+
 
 #
 # Check for Linux CD-ROM support
@@ -5657,6 +5795,19 @@ define_in_config_if_yes $_updates 'USE_UPDATES'
 define_in_config_if_yes "$_builtin_resources" 'BUILTIN_RESOURCES'
 
 #
+# Check whether to activate engines (ResidualVM specific)
+#
+if test `get_engine_build monkey4` = yes && test ! "$_mpeg2" = yes ; then
+	echo "...disabling support for video cutscenes in PS2 version of Escape from Monkey Island. mpeg2dec is required"
+fi
+
+# Added define for ICB - ResidualVM specific
+# TODO: remove it
+if test `get_engine_build icb` = yes ; then
+	append_var DEFINES "-D_PC=1"
+fi
+
+#
 # Figure out installation directories
 #
 test "x$prefix" = xNONE && prefix=/usr/local
@@ -5818,7 +5969,7 @@ case $_host_os in
 		system_libs=''
 		for lib in $LIBS; do
 			case $lib in
-			-lz|-lm|-ldl)
+			-lz|-lm|-ldl|-landroid|-lGLESv1_CM|-lGLESv2) # ResidualVM specific
 				system_libs="$system_libs $lib"
 				;;
 			*)
@@ -5830,7 +5981,7 @@ case $_host_os in
 		# -lgcc is carefully placed here - we want to catch
 		# all toolchain symbols in *our* libraries rather
 		# than pick up anything unhygenic from the Android libs.
-		LIBS="-Wl,-Bstatic $static_libs -Wl,-Bdynamic -lgcc $system_libs -llog -landroid -lGLESv1_CM"
+		LIBS="-Wl,-Bstatic $static_libs -Wl,-Bdynamic -lgcc $system_libs -llog -landroid" # ResidualVM removed: -lGLESv1_CM
 		;;
 	riscos)
 		append_var CXXFLAGS "-mno-poke-function-name"

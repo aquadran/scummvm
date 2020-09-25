@@ -63,6 +63,8 @@
 #endif
 #endif
 
+#include "graphics/renderer.h"  // ResidualVM specific
+
 namespace GUI {
 
 enum {
@@ -87,7 +89,8 @@ enum {
 	kUpdatesCheckCmd		= 'updc',
 	kKbdMouseSpeedChanged	= 'kmsc',
 	kJoystickDeadzoneChanged= 'jodc',
-	kGraphicsTabContainerReflowCmd = 'gtcr'
+	kGraphicsTabContainerReflowCmd = 'gtcr',
+	kFullscreenToggled		= 'oful'  // ResidualVM specific
 };
 
 enum {
@@ -178,6 +181,11 @@ void OptionsDialog::init() {
 	_enableShaderSettings = false;
 	_shaderPopUpDesc = nullptr;
 	_shaderPopUp = nullptr;
+	_vsyncCheckbox = nullptr;  // ResidualVM specific
+	_rendererTypePopUpDesc = nullptr; // ResidualVM specific
+	_rendererTypePopUp = nullptr; // ResidualVM specific
+	_antiAliasPopUpDesc = nullptr; // ResidualVM specific
+	_antiAliasPopUp = nullptr; // ResidualVM specific
 	_enableAudioSettings = false;
 	_midiPopUp = nullptr;
 	_midiPopUpDesc = nullptr;
@@ -343,13 +351,26 @@ void OptionsDialog::build() {
 
 		// Aspect ratio setting
 		if (_guioptions.contains(GUIO_NOASPECT)) {
-			_aspectCheckbox->setState(false);
+			_aspectCheckbox->setState(true); // ResidualVM specific change
 			_aspectCheckbox->setEnabled(false);
 		} else {
 			_aspectCheckbox->setEnabled(true);
 			_aspectCheckbox->setState(ConfMan.getBool("aspect_ratio", _domain));
 		}
 
+		// ResidualVM specific -- Start
+		_vsyncCheckbox->setState(ConfMan.getBool("vsync", _domain));
+
+		_rendererTypePopUp->setEnabled(true);
+		_rendererTypePopUp->setSelectedTag(Graphics::parseRendererTypeCode(ConfMan.get("renderer", _domain)));
+
+		_antiAliasPopUp->setEnabled(true);
+		if (ConfMan.hasKey("antialiasing", _domain)) {
+			_antiAliasPopUp->setSelectedTag(ConfMan.getInt("antialiasing", _domain));
+		} else {
+			_antiAliasPopUp->setSelectedTag(-1);
+		}
+		// ResidualVM specific -- End
 	}
 
 	// Shader options
@@ -500,11 +521,14 @@ void OptionsDialog::apply() {
 				graphicsModeChanged = true;
 			if (ConfMan.getBool("aspect_ratio", _domain) != _aspectCheckbox->getState())
 				graphicsModeChanged = true;
-
+			if (ConfMan.getBool("vsync", _domain) != _vsyncCheckbox->getState()) // ResidualVM specific
+				graphicsModeChanged = true; // ResidualVM specific
+			
 			ConfMan.setBool("filtering", _filteringCheckbox->getState(), _domain);
 			ConfMan.setBool("fullscreen", _fullscreenCheckbox->getState(), _domain);
 			ConfMan.setBool("aspect_ratio", _aspectCheckbox->getState(), _domain);
-
+			ConfMan.setBool("vsync", _vsyncCheckbox->getState(), _domain); // ResidualVM specific
+			
 			bool isSet = false;
 
 			if ((int32)_gfxPopUp->getSelectedTag() >= 0) {
@@ -543,6 +567,22 @@ void OptionsDialog::apply() {
 			}
 			if (!isSet)
 				ConfMan.removeKey("stretch_mode", _domain);
+			// ResidualVM specific -- Start
+			if (_rendererTypePopUp->getSelectedTag() > 0) {
+				Graphics::RendererType selected = (Graphics::RendererType) _rendererTypePopUp->getSelectedTag();
+				ConfMan.set("renderer", Graphics::getRendererTypeCode(selected), _domain);
+			} else {
+				ConfMan.removeKey("renderer", _domain);
+			}
+
+			if (_antiAliasPopUp->getSelectedTag() != (uint32)-1) {
+				uint level = _antiAliasPopUp->getSelectedTag();
+				ConfMan.setInt("antialiasing", level, _domain);
+			} else {
+				ConfMan.removeKey("antialiasing", _domain);
+			}
+			// ResidualVM specific -- End
+
 		} else {
 			ConfMan.removeKey("fullscreen", _domain);
 			ConfMan.removeKey("filtering", _domain);
@@ -550,6 +590,9 @@ void OptionsDialog::apply() {
 			ConfMan.removeKey("gfx_mode", _domain);
 			ConfMan.removeKey("stretch_mode", _domain);
 			ConfMan.removeKey("render_mode", _domain);
+			ConfMan.removeKey("renderer", _domain); // ResidualVM specific
+			ConfMan.removeKey("antialiasing", _domain); // ResidualVM specific
+			ConfMan.removeKey("vsync", _domain); // ResidualVM specific
 		}
 	}
 
@@ -1256,6 +1299,39 @@ void OptionsDialog::addGraphicControls(GuiObject *boss, const Common::String &pr
 
 	// Fullscreen checkbox
 	_fullscreenCheckbox = new CheckboxWidget(boss, prefix + "grFullscreenCheckbox", _("Fullscreen mode"));
+	// Fullscreen checkbox
+	_fullscreenCheckbox = new CheckboxWidget(boss, prefix + "grFullscreenCheckbox", _("Fullscreen mode"), Common::U32String(""), kFullscreenToggled);
+
+	// ResidualVM specific description
+	_aspectCheckbox = new CheckboxWidget(boss, prefix + "grAspectCheckbox", _("Preserve aspect ratio"), _("Preserve the aspect ratio in fullscreen mode"));
+
+	// ResidualVM specific -- Start
+	_vsyncCheckbox = new CheckboxWidget(boss, prefix + "grVSyncCheckbox", _("V-Sync"), _("Wait for the vertical sync to refresh the screen"));
+
+	_rendererTypePopUpDesc = new StaticTextWidget(boss, prefix + "grRendererTypePopupDesc", _("Game Renderer:"));
+	_rendererTypePopUp = new PopUpWidget(boss, prefix + "grRendererTypePopup");
+	_rendererTypePopUp->appendEntry(_("<default>"), Graphics::kRendererTypeDefault);
+	_rendererTypePopUp->appendEntry("");
+	const Graphics::RendererTypeDescription *rt = Graphics::listRendererTypes();
+	for (; rt->code; ++rt) {
+		_rendererTypePopUp->appendEntry(_(rt->description), rt->id);
+	}
+
+	_antiAliasPopUpDesc = new StaticTextWidget(boss, prefix + "grAntiAliasPopupDesc", _("Anti-aliasing:"));
+	_antiAliasPopUp = new PopUpWidget(boss, prefix + "grAntiAliasPopup");
+	_antiAliasPopUp->appendEntry(_("<default>"), -1);
+	_antiAliasPopUp->appendEntry("");
+	_antiAliasPopUp->appendEntry(_("Disabled"), 0);
+	const Common::Array<uint> levels = g_system->getSupportedAntiAliasingLevels();
+	for (uint i = 0; i < levels.size(); i++) {
+		_antiAliasPopUp->appendEntry(Common::String::format("%dx", levels[i]), levels[i]);
+	}
+	if (levels.empty()) {
+		// Don't show the anti-aliasing selection menu when it is not supported
+		_antiAliasPopUpDesc->setVisible(false);
+		_antiAliasPopUp->setVisible(false);
+	}
+	// ResidualVM specific -- End
 
 	// Filtering checkbox
 	_filteringCheckbox = new CheckboxWidget(boss, prefix + "grFilteringCheckbox", _("Filter graphics"), _("Use linear filtering when scaling graphics"));

@@ -155,7 +155,12 @@ enum JoystickButton {
 	JOYSTICK_BUTTON_DPAD_UP,
 	JOYSTICK_BUTTON_DPAD_DOWN,
 	JOYSTICK_BUTTON_DPAD_LEFT,
-	JOYSTICK_BUTTON_DPAD_RIGHT
+	JOYSTICK_BUTTON_DPAD_RIGHT,
+/* START of ResidualVM-specific code */
+	// Left and right trigger button events are generated in place of the axis events for now
+	JOYSTICK_BUTTON_LEFT_TRIGGER,
+	JOYSTICK_BUTTON_RIGHT_TRIGGER
+/* END of ResidualVM-specific code */
 };
 
 /**
@@ -219,6 +224,13 @@ struct Event {
 
 	/* The path of the file or directory dragged to the ScummVM window */
 	Common::String path;
+
+	/**
+	 * Mouse movement since the last mouse movement event.
+	 *
+	 * This field is ResidualVM specific
+	 */
+	Common::Point relMouse;
 
 	/**
 	 * Joystick data; only valid for joystick events (EVENT_JOYAXIS_MOTION,

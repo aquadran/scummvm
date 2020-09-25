@@ -128,6 +128,7 @@ void OSystem::destroy() {
 }
 
 bool OSystem::setGraphicsMode(const char *name) {
+	return true; //ResidualVM not use it
 	if (!name)
 		return false;
 

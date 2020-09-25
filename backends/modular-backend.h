@@ -26,6 +26,7 @@
 #include "backends/base-backend.h"
 
 class GraphicsManager;
+class ResVmGraphicsManager; // ResidualVM specific
 class MixerManager;
 class MutexManager;
 
@@ -82,6 +83,9 @@ public:
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const override final;
 #endif
 	virtual void initSize(uint width, uint height, const Graphics::PixelFormat *format = NULL) override final;
+	virtual void setupScreen(uint screenW, uint screenH, bool fullscreen, bool accel3d); // ResidualVM specific method
+	virtual Graphics::PixelBuffer getScreenPixelBuffer(); // ResidualVM specific method
+	virtual void suggestSideTextures(Graphics::Surface *left, Graphics::Surface *right); // ResidualVM specific method
 	virtual void initSizeHint(const Graphics::ModeList &modes) override final;
 	virtual int getScreenChangeID() const override final;
 
@@ -114,6 +118,7 @@ public:
 	virtual void warpMouse(int x, int y) override final;
 	virtual void setMouseCursor(const void *buf, uint w, uint h, int hotspotX, int hotspotY, uint32 keycolor, bool dontScale = false, const Graphics::PixelFormat *format = NULL) override final;
 	virtual void setCursorPalette(const byte *colors, uint start, uint num) override final;
+	virtual bool lockMouse(bool lock); // ResidualVM specific method
 
 	//@}
 

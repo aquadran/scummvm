@@ -24,12 +24,14 @@
 
 #include "backends/audiocd/audiocd.h"
 #include "backends/graphics/graphics.h"
+#include "backends/graphics3d/graphics3d.h" // ResidualVM specific
 #include "backends/mixer/mixer.h"
 #include "backends/mutex/mutex.h"
 #include "gui/EventRecorder.h"
 
 #include "common/timer.h"
 #include "graphics/pixelformat.h"
+#include "graphics/pixelbuffer.h" // ResidualVM specific:
 
 ModularGraphicsBackend::ModularGraphicsBackend()
 	:
@@ -122,6 +124,21 @@ Common::List<Graphics::PixelFormat> ModularGraphicsBackend::getSupportedFormats(
 }
 
 #endif
+
+// ResidualVM specific method
+void ModularGraphicsBackend::setupScreen(uint screenW, uint screenH, bool fullscreen, bool accel3d) {
+	_graphicsManager->setupScreen(screenW, screenH, fullscreen, accel3d);
+}
+
+// ResidualVM specific method
+Graphics::PixelBuffer ModularGraphicsBackend::getScreenPixelBuffer() {
+	return _graphicsManager->getScreenPixelBuffer();
+}
+
+// ResidualVM specific method
+void ModularGraphicsBackend::suggestSideTextures(Graphics::Surface *left, Graphics::Surface *right) {
+	_graphicsManager->suggestSideTextures(left, right);
+}
 
 void ModularGraphicsBackend::initSize(uint w, uint h, const Graphics::PixelFormat *format ) {
 	_graphicsManager->initSize(w, h, format);
@@ -232,6 +249,11 @@ int16 ModularGraphicsBackend::getOverlayWidth() {
 
 bool ModularGraphicsBackend::showMouse(bool visible) {
 	return _graphicsManager->showMouse(visible);
+}
+
+// ResidualVM specific method
+bool ModularGraphicsBackend::lockMouse(bool visible) {
+	return _graphicsManager->lockMouse(visible);
 }
 
 void ModularGraphicsBackend::warpMouse(int x, int y) {

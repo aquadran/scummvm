@@ -138,10 +138,10 @@ endif
 # derive from the SDL backend, and they all need the following files.
 ifdef SDL_BACKEND
 MODULE_OBJS += \
-	events/sdl/legacy-sdl-events.o \
 	events/sdl/sdl-events.o \
-	graphics/sdl/sdl-graphics.o \
-	graphics/surfacesdl/surfacesdl-graphics.o \
+	events/sdl/resvm-sdl-events.o \
+	graphics3d/sdl/sdl-graphics3d.o \
+	graphics3d/surfacesdl/surfacesdl-graphics3d.o \
 	mixer/sdl/sdl-mixer.o \
 	mutex/sdl/sdl-mutex.o \
 	plugins/sdl/sdl-provider.o \
@@ -155,7 +155,7 @@ endif
 
 ifdef USE_OPENGL
 MODULE_OBJS += \
-	graphics/openglsdl/openglsdl-graphics.o
+	graphics3d/openglsdl/openglsdl-graphics3d.o
 endif
 
 ifdef USE_DISCORD
